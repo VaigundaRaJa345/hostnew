@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Details</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #000;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #222;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+            max-width: 500px;
+            text-align: center;
+        }
+        h2 {
+            color: #007bff;
+        }
+        .detail-item {
+            margin: 15px 0;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>QR Code Details</h2>
+        <div class="detail-item">
+            <strong>Name:</strong> {{ qr_data['full_name'] }}
+        </div>
+        <div class="detail-item">
+            <strong>Mobile:</strong> {{ qr_data['mobile'] }}
+        </div>
+        <div class="detail-item">
+            <strong>Vehicle:</strong> {{ qr_data['vehicle'] }}
+        </div>
+        <a href="{{ url_for('home') }}" class="btn btn-primary mt-3">Back to Home</a>
+    </div>
+</body>
+</html>
