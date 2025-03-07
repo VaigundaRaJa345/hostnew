@@ -14,7 +14,7 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Create users table if it doesn't exist
+# Create tables if they don't exist
 def init_db():
     with get_db_connection() as conn:
         conn.execute('''
@@ -22,6 +22,14 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL
+            )
+        ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS emergency_contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                mobile TEXT NOT NULL UNIQUE,
+                vehicle TEXT NOT NULL UNIQUE
             )
         ''')
         conn.commit()
@@ -55,10 +63,7 @@ def register():
 
         try:
             with get_db_connection() as conn:
-                conn.execute('''
-                    INSERT INTO users (username, password)
-                    VALUES (?, ?)
-                ''', (username, hashed_password))
+                conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
                 conn.commit()
             flash("Registration successful! Please log in.", "success")
             return redirect(url_for('login'))
@@ -80,9 +85,7 @@ def login():
             return redirect(url_for('login'))
 
         with get_db_connection() as conn:
-            user = conn.execute('''
-                SELECT * FROM users WHERE username = ?
-            ''', (username,)).fetchone()
+            user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
 
         if user and check_password_hash(user['password'], password):
             session['username'] = username
@@ -101,62 +104,55 @@ def logout():
     flash("You have been logged out.", "success")
     return redirect(url_for('login'))
 
-# Route to generate QR Code
+# Route to generate QR Code and store data
 @app.route('/generate_qr', methods=['POST'])
 def generate_qr():
     full_name = request.form.get('full_name')
     mobile = request.form.get('mobile')
     vehicle = request.form.get('vehicle')
 
-@app.route('/emergency-info')
-def emergency_info():
-    name = request.args.get('name', 'Unknown')
-    mobile = request.args.get('mobile', 'Not provided')
-    vehicle = request.args.get('vehicle', 'Not provided')
-    
-    return render_template('emergency_info.html', name=name, mobile=mobile, vehicle=vehicle)    
-
     if not full_name or not mobile or not vehicle:
         flash("All fields are required!", "error")
         return redirect(url_for('home'))
 
-    # Generate a unique ID for the QR code
-    qr_id = str(uuid.uuid4())
+    try:
+        with get_db_connection() as conn:
+            conn.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (?, ?, ?)', 
+                         (full_name, mobile, vehicle))
+            conn.commit()
+    except sqlite3.IntegrityError:
+        flash("Mobile number or Vehicle number already exists!", "error")
+        return redirect(url_for('home'))
 
-    # Store the details in the session with the unique ID
-    qr_data = {
-        'full_name': full_name,
-        'mobile': mobile,
-        'vehicle': vehicle
-    }
-    session[qr_id] = qr_data
-
-    # Generate a URL for the details page
-    details_url = url_for('show_details', qr_id=qr_id, _external=True)
-
-    # Generate the QR code with the URL
+    # Generate a QR code with the database ID
+    qr_id = mobile  # Using mobile number as the unique identifier
+    details_url = url_for('emergency_info', mobile=qr_id, _external=True)
     qr_img = qrcode.make(details_url)
 
-    # Save the QR code image
     qr_filename = f"{full_name.replace(' ', '_')}_{qr_id}.png"
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
     return render_template("home.html", qr_image=qr_filename)
 
-# Route to display details when QR code is scanned
-@app.route('/details/<qr_id>')
-def show_details(qr_id):
-    # Retrieve the details from the session
-    qr_data = session.get(qr_id)
+# Route to display emergency details when QR code is scanned
+@app.route('/emergency-info')
+def emergency_info():
+    mobile = request.args.get('mobile')
 
-    if not qr_data:
-        flash("Invalid QR code or data not found!", "error")
+    if not mobile:
+        flash("Invalid request!", "error")
         return redirect(url_for('home'))
 
-    # Render a template to display the details
-    return render_template('details.html', qr_data=qr_data)
+    with get_db_connection() as conn:
+        contact = conn.execute('SELECT * FROM emergency_contacts WHERE mobile = ?', (mobile,)).fetchone()
+
+    if not contact:
+        flash("No data found!", "error")
+        return redirect(url_for('home'))
+
+    return render_template('emergency_info.html', name=contact['name'], mobile=contact['mobile'], vehicle=contact['vehicle'])
 
 # Run the Flask app
 if __name__ == '__main__':
-    app.run(host='0.0.0', port=5000 , debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
