@@ -123,23 +123,27 @@ def generate_qr():
     mobile = request.form.get('mobile').strip()
     vehicle = request.form.get('vehicle').strip()
 
+    print(f"Received data: Name={full_name}, Mobile={mobile}, Vehicle={vehicle}")  # Debugging
+
     if not full_name or not mobile or not vehicle:
         return jsonify({"error": "All fields are required!"}), 400
 
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s) RETURNING id',
+                print("Connected to DB, inserting data...")  # Debugging
+                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s)',
                             (full_name, mobile, vehicle))
-                contact_id = cur.fetchone()[0]
                 conn.commit()
+                print("Data inserted successfully!")  # Debugging
     except psycopg2.IntegrityError:
+        print("Duplicate data error!")  # Debugging
         return jsonify({"error": "Mobile number or Vehicle number already exists!"}), 400
 
-    details_url = url_for('emergency_info', contact_id=contact_id, _external=True)
-
+    # Generate QR Code
+    details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
     qr_img = qrcode.make(details_url)
-    qr_filename = f"{contact_id}.png"
+    qr_filename = f"{mobile}.png"
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
