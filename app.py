@@ -1,37 +1,48 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
+import psycopg2  # PostgreSQL
 import os
-import qrcode  # QR code library
+import qrcode
+from urllib.parse import urlparse
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Required for session management
+app.secret_key = 'your_secret_key'
 
-# Database setup
+# Database URL from Render (Replace this with your actual database URL)
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://quick_care_user:0SM3EPvLjGsVr8LCFNPcotpNahYME0pH@dpg-cv5bp5q3esus73aridg0-a/quick_care")
+
+# Connect to PostgreSQL
 def get_db_connection():
-    conn = sqlite3.connect('quick_care.db')
-    conn.row_factory = sqlite3.Row
+    result = urlparse(DATABASE_URL)
+    conn = psycopg2.connect(
+        dbname=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname,
+        port=result.port
+    )
     return conn
 
 # Create tables if they don't exist
 def init_db():
     with get_db_connection() as conn:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL
-            )
-        ''')
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS emergency_contacts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                mobile TEXT NOT NULL UNIQUE,
-                vehicle TEXT NOT NULL UNIQUE
-            )
-        ''')
-        conn.commit()
+        with conn.cursor() as cur:
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE,
+                    password TEXT NOT NULL
+                )
+            ''')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS emergency_contacts (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    mobile TEXT NOT NULL UNIQUE,
+                    vehicle TEXT NOT NULL UNIQUE
+                )
+            ''')
+            conn.commit()
 
 # Initialize the database
 init_db()
@@ -62,11 +73,12 @@ def register():
 
         try:
             with get_db_connection() as conn:
-                conn.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
-                conn.commit()
+                with conn.cursor() as cur:
+                    cur.execute('INSERT INTO users (username, password) VALUES (%s, %s)', (username, hashed_password))
+                    conn.commit()
             flash("Registration successful! Please log in.", "success")
             return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
+        except psycopg2.IntegrityError:
             flash("Username already exists!", "error")
             return redirect(url_for('register'))
 
@@ -84,9 +96,11 @@ def login():
             return redirect(url_for('login'))
 
         with get_db_connection() as conn:
-            user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+            with conn.cursor() as cur:
+                cur.execute('SELECT * FROM users WHERE username = %s', (username,))
+                user = cur.fetchone()
 
-        if user and check_password_hash(user['password'], password):
+        if user and check_password_hash(user[2], password):  # user[2] is password hash
             session['username'] = username
             flash("Login successful!", "success")
             return redirect(url_for('home'))
@@ -116,10 +130,11 @@ def generate_qr():
 
     try:
         with get_db_connection() as conn:
-            conn.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (?, ?, ?)', 
-                         (full_name, mobile, vehicle))
-            conn.commit()
-    except sqlite3.IntegrityError:
+            with conn.cursor() as cur:
+                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s)', 
+                            (full_name, mobile, vehicle))
+                conn.commit()
+    except psycopg2.IntegrityError:
         flash("Mobile number or Vehicle number already exists!", "error")
         return redirect(url_for('home'))
 
