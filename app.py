@@ -123,8 +123,6 @@ def generate_qr():
     mobile = request.form.get('mobile').strip()
     vehicle = request.form.get('vehicle').strip()
 
-    print(f"Received data: Name={full_name}, Mobile={mobile}, Vehicle={vehicle}")  # Debugging
-
     if not full_name or not mobile or not vehicle:
         return jsonify({"error": "All fields are required!"}), 400
 
@@ -136,18 +134,25 @@ def generate_qr():
                             (full_name, mobile, vehicle))
                 conn.commit()
                 print("Data inserted successfully!")  # Debugging
+
+        # Generate the emergency info URL
+        details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
+
+        # Generate QR Code
+        qr_img = qrcode.make(details_url)
+        qr_filename = f"{mobile}.png"
+        qr_path = os.path.join(QR_FOLDER, qr_filename)
+        qr_img.save(qr_path)
+        print("QR Code Generated!")  # Debugging
+
+        return jsonify({"qr_url": url_for('static', filename=f'qr_codes/{qr_filename}', _external=True)})
+
     except psycopg2.IntegrityError:
         print("Duplicate data error!")  # Debugging
         return jsonify({"error": "Mobile number or Vehicle number already exists!"}), 400
-
-    # Generate QR Code
-    details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
-    qr_img = qrcode.make(details_url)
-    qr_filename = f"{mobile}.png"
-    qr_path = os.path.join(QR_FOLDER, qr_filename)
-    qr_img.save(qr_path)
-
-    return jsonify({"qr_url": url_for('static', filename=f'qr_codes/{qr_filename}', _external=True)})
+    except Exception as e:
+        print(f"Unexpected error: {e}")  # Debugging
+        return jsonify({"error": "Internal Server Error"}), 500
 
 @app.route('/emergency-info/<int:contact_id>')
 def emergency_info(contact_id):
