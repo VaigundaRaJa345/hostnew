@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2  # PostgreSQL
 import os
@@ -6,10 +6,10 @@ import qrcode
 from urllib.parse import urlparse
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
+app.secret_key = os.getenv("SECRET_KEY", "your_secret_key")
 
-# Database URL from Render (Replace this with your actual database URL)
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://quick_care_user:0SM3EPvLjGsVr8LCFNPcotpNahYME0pH@dpg-cv5bp5q3esus73aridg0-a/quick_care")
+# Database URL from Render (Ensure it's set in environment variables)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Connect to PostgreSQL
 def get_db_connection():
@@ -63,8 +63,8 @@ def home():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
 
         if not username or not password:
             flash("Username and password are required!", "danger")
@@ -89,8 +89,8 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username').strip()
+        password = request.form.get('password').strip()
 
         if not username or not password:
             flash("Username and password are required!", "danger")
@@ -101,7 +101,7 @@ def login():
                 cur.execute('SELECT * FROM users WHERE username = %s', (username,))
                 user = cur.fetchone()
 
-        if user and check_password_hash(user[2], password):  # user[2] is password hash
+        if user and check_password_hash(user[2], password):
             session['username'] = username
             flash("Login successful!", "success")
             return redirect(url_for('home'))
@@ -121,36 +121,32 @@ def logout():
 # Generate QR Code and Store Data
 @app.route('/generate_qr', methods=['POST'])
 def generate_qr():
-    full_name = request.form.get('full_name')
-    mobile = request.form.get('mobile')
-    vehicle = request.form.get('vehicle')
+    full_name = request.form.get('full_name').strip()
+    mobile = request.form.get('mobile').strip()
+    vehicle = request.form.get('vehicle').strip()
 
     if not full_name or not mobile or not vehicle:
-        flash("All fields are required!", "danger")
-        return redirect(url_for('home'))
+        return jsonify({"error": "All fields are required!"}), 400
 
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s)', 
+                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s)',
                             (full_name, mobile, vehicle))
                 conn.commit()
     except psycopg2.IntegrityError:
-        flash("Mobile number or Vehicle number already exists!", "danger")
-        return redirect(url_for('home'))
+        return jsonify({"error": "Mobile number or Vehicle number already exists!"}), 400
 
     # Generate a URL containing user details
     details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
 
     # Generate QR code with embedded data
     qr_img = qrcode.make(details_url)
-
-    qr_filename = f"{full_name.replace(' ', '_')}.png"
+    qr_filename = f"{mobile}.png"  # Ensure uniqueness using mobile number
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
-    flash("QR Code generated successfully!", "success")
-    return render_template("home.html", qr_image=qr_filename, qr_url=details_url)
+    return jsonify({"qr_url": url_for('static', filename=f'qr_codes/{qr_filename}', _external=True)})
 
 # Display Emergency Details When QR is Scanned
 @app.route('/emergency-info')
