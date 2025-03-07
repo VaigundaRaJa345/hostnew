@@ -67,11 +67,18 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
+        
         <form method="POST">
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
+            {{ form.hidden_tag() }}  <!-- CSRF Protection -->
+            <div>
+                {{ form.username(class="form-control", placeholder="Username") }}
+            </div>
+            <div>
+                {{ form.password(class="form-control", placeholder="Password") }}
+            </div>
             <button type="submit">Login</button>
         </form>
+        
         <p>Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
     </div>
 </body>

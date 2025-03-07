@@ -5,9 +5,12 @@ import psycopg2  # PostgreSQL
 import qrcode
 from urllib.parse import urlparse
 from flask_wtf.csrf import CSRFProtect
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import DataRequired
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "your_secret_key")
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "your_secret_key")
 csrf = CSRFProtect(app)
 
 # Get the database URL from environment variables
@@ -59,6 +62,11 @@ init_db()
 QR_FOLDER = "static/qr_codes"
 os.makedirs(QR_FOLDER, exist_ok=True)
 
+class RegistrationForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Register')
+
 @app.route('/')
 def home():
     if 'username' in session:
@@ -68,9 +76,10 @@ def home():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        username = request.form.get('username').strip()
-        password = request.form.get('password').strip()
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        username = form.username.data.strip()
+        password = form.password.data.strip()
 
         if not username or not password:
             flash("Username and password are required!", "danger")
@@ -89,13 +98,14 @@ def register():
             flash("Username already exists!", "danger")
             return redirect(url_for('register'))
 
-    return render_template('register.html')
+    return render_template('register.html', form=form)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form.get('username').strip()
-        password = request.form.get('password').strip()
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        username = form.username.data.strip()
+        password = form.password.data.strip()
 
         if not username or not password:
             flash("Username and password are required!", "danger")
@@ -114,7 +124,7 @@ def login():
         flash("Invalid username or password!", "danger")
         return redirect(url_for('login'))
 
-    return render_template('login.html')
+    return render_template('login.html', form=form)
 
 @app.route('/logout')
 def logout():
