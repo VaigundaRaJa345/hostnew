@@ -123,11 +123,13 @@ def generate_qr():
         flash("Mobile number or Vehicle number already exists!", "error")
         return redirect(url_for('home'))
 
-    # Generate a QR code with the database ID
-    details_url = url_for('emergency_info', mobile=mobile, _external=True)
+    # Generate a URL containing user details
+    details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
+
+    # Generate QR code with embedded data
     qr_img = qrcode.make(details_url)
 
-    qr_filename = f"{full_name.replace(' ', '_')}_{mobile}.png"
+    qr_filename = f"{full_name.replace(' ', '_')}.png"
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
@@ -136,20 +138,11 @@ def generate_qr():
 # Display Emergency Details When QR is Scanned
 @app.route('/emergency-info')
 def emergency_info():
-    mobile = request.args.get('mobile')
+    name = request.args.get('name', 'Unknown')
+    mobile = request.args.get('mobile', 'Not provided')
+    vehicle = request.args.get('vehicle', 'Not provided')
 
-    if not mobile:
-        flash("Invalid request!", "error")
-        return redirect(url_for('home'))
-
-    with get_db_connection() as conn:
-        contact = conn.execute('SELECT * FROM emergency_contacts WHERE mobile = ?', (mobile,)).fetchone()
-
-    if not contact:
-        flash("No data found!", "error")
-        return redirect(url_for('home'))
-
-    return render_template('emergency_info.html', name=contact['name'], mobile=contact['mobile'], vehicle=contact['vehicle'])
+    return render_template('emergency_info.html', name=name, mobile=mobile, vehicle=vehicle)
 
 # Run the Flask app
 if __name__ == '__main__':
