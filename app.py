@@ -13,9 +13,17 @@ DATABASE_URL = os.getenv("dpg-cv5bp5q3esus73aridg0-a.oregon-postgres.render.com"
 
 # Connect to PostgreSQL
 def get_db_connection():
-    result = urlparse(DATABASE_URL)
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL is not set in environment variables")
+
+    # Ensure the URL is in the correct format for psycopg2
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = dpg-cv5bp5q3esus73aridg0-a.oregon-postgres.render.com.replace("postgres://", "postgresql://", 1)
+
+    result = urlparse(dpg-cv5bp5q3esus73aridg0-a.oregon-postgres.render.com)
+    
     conn = psycopg2.connect(
-        dbname=result.path[1:],
+        dbname=result.path[1:],  # Skip the leading "/"
         user=result.username,
         password=result.password,
         host=result.hostname,
