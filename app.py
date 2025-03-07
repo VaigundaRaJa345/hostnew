@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "your_secret_key")
 
 # Database URL from Render (Ensure it's set in environment variables)
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("dpg-cv5bp5q3esus73aridg0-a.oregon-postgres.render.com")
 
 # Connect to PostgreSQL
 def get_db_connection():
