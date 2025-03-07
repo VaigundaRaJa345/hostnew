@@ -4,9 +4,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2  # PostgreSQL
 import qrcode
 from urllib.parse import urlparse
+from flask_wtf.csrf import CSRFProtect
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "your_secret_key")
+csrf = CSRFProtect(app)
 
 # Get the database URL from environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -29,24 +31,27 @@ def get_db_connection():
 
 # Initialize database tables
 def init_db():
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    username TEXT NOT NULL UNIQUE,
-                    password TEXT NOT NULL
-                )
-            ''')
-            cur.execute('''
-                CREATE TABLE IF NOT EXISTS emergency_contacts (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    mobile TEXT NOT NULL UNIQUE,
-                    vehicle TEXT NOT NULL UNIQUE
-                )
-            ''')
-            conn.commit()
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id SERIAL PRIMARY KEY,
+                        username TEXT NOT NULL UNIQUE,
+                        password TEXT NOT NULL
+                    )
+                ''')
+                cur.execute('''
+                    CREATE TABLE IF NOT EXISTS emergency_contacts (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        mobile TEXT NOT NULL UNIQUE,
+                        vehicle TEXT NOT NULL UNIQUE
+                    )
+                ''')
+                conn.commit()
+    except Exception as e:
+        print("Database initialization failed:", e)
 
 init_db()
 
@@ -105,9 +110,9 @@ def login():
             session['username'] = username
             flash("Login successful!", "success")
             return redirect(url_for('home'))
-        else:
-            flash("Invalid username or password!", "danger")
-            return redirect(url_for('login'))
+
+        flash("Invalid username or password!", "danger")
+        return redirect(url_for('login'))
 
     return render_template('login.html')
 
@@ -117,54 +122,22 @@ def logout():
     flash("You have been logged out.", "info")
     return redirect(url_for('login'))
 
-@app.route('/generate_qr', methods=['POST'])
-def generate_qr():
-    full_name = request.form.get('full_name').strip()
-    mobile = request.form.get('mobile').strip()
-    vehicle = request.form.get('vehicle').strip()
-
-    if not full_name or not mobile or not vehicle:
-        return jsonify({"error": "All fields are required!"}), 400
-
+@app.route('/emergency-info/<int:contact_id>')
+def emergency_info(contact_id):
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                print("Connected to DB, inserting data...")  # Debugging
-                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s)',
-                            (full_name, mobile, vehicle))
-                conn.commit()
-                print("Data inserted successfully!")  # Debugging
+                cur.execute('SELECT name, mobile, vehicle FROM emergency_contacts WHERE id = %s', (contact_id,))
+                contact = cur.fetchone()
 
-        # Generate the emergency info URL
-        details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
+        if not contact:
+            flash("Emergency contact not found!", "danger")
+            return redirect(url_for('home'))
 
-        # Generate QR Code
-        qr_img = qrcode.make(details_url)
-        qr_filename = f"{mobile}.png"
-        qr_path = os.path.join(QR_FOLDER, qr_filename)
-        qr_img.save(qr_path)
-        print("QR Code Generated!")  # Debugging
-
-        return jsonify({"qr_url": url_for('static', filename=f'qr_codes/{qr_filename}', _external=True)})
-
-    except psycopg2.IntegrityError:
-        print("Duplicate data error!")  # Debugging
-        return jsonify({"error": "Mobile number or Vehicle number already exists!"}), 400
-    except Exception as e:
-        print(f"Unexpected error: {e}")  # Debugging
-        return jsonify({"error": "Internal Server Error"}), 500
-
-@app.route('/emergency-info/<int:contact_id>')
-def emergency_info(contact_id):
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute('SELECT name, mobile, vehicle FROM emergency_contacts WHERE id = %s', (contact_id,))
-            contact = cur.fetchone()
-
-    if contact:
         return render_template('emergency_info.html', name=contact[0], mobile=contact[1], vehicle=contact[2])
-    else:
-        return "Contact not found", 404
+    except Exception as e:
+        print("Error fetching emergency contact:", e)
+        return "Internal Server Error", 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

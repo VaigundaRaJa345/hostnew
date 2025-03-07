@@ -76,7 +76,7 @@
         <hr>
 
         <!-- QR Generation Form -->
-        <form id="qrForm">
+        <form id="qrForm" onsubmit="event.preventDefault(); generateQR();">
             <div class="mb-3">
                 <label class="form-label">Full Name</label>
                 <input type="text" id="qr-name" name="full_name" class="form-control" required>
@@ -116,15 +116,15 @@
 
     <script>
         function generateQR() {
-            let fullName = document.getElementById("full_name").value.trim();
-            let mobile = document.getElementById("mobile").value.trim();
-            let vehicle = document.getElementById("vehicle").value.trim();
-    
+            let fullName = document.getElementById("qr-name").value.trim();
+            let mobile = document.getElementById("qr-mob").value.trim();
+            let vehicle = document.getElementById("qr-vech").value.trim();
+
             if (!fullName || !mobile || !vehicle) {
                 alert("All fields are required!");
                 return;
             }
-    
+
             fetch("/generate_qr", {
                 method: "POST",
                 headers: {
@@ -142,25 +142,13 @@
                     alert(data.error);
                 } else {
                     document.getElementById("qrImage").src = data.qr_url;
-                    document.getElementById("qrContainer").style.display = "block";
+                    document.getElementById("downloadQR").href = data.qr_url;
+                    document.getElementById("qrResult").classList.remove("hidden");
                 }
             })
             .catch(error => console.error("Error:", error));
         }
     </script>
-    
-    <!-- Form for QR Code Generation -->
-    <form onsubmit="event.preventDefault(); generateQR();">
-        <input type="text" id="full_name" placeholder="Full Name" required>
-        <input type="text" id="mobile" placeholder="Mobile Number" required>
-        <input type="text" id="vehicle" placeholder="Vehicle Number" required>
-        <button type="submit">Generate QR</button>
-    </form>
-    
-    <!-- QR Code Display -->
-    <div id="qrContainer" style="display: none;">
-        <h3>Your QR Code:</h3>
-        <img id="qrImage" src="" alt="QR Code">
-    </div>
+
 </body>
 </html>
