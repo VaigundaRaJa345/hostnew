@@ -8,22 +8,20 @@ from urllib.parse import urlparse
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "your_secret_key")
 
-# Database URL from Render (Ensure it's set in environment variables)
-DATABASE_URL = os.getenv("dpg-cv5bp5q3esus73aridg0-a.oregon-postgres.render.com")
+# Get the database URL from environment variables
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Connect to PostgreSQL
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set in environment variables")
+
+# Ensure correct database URL format for psycopg2
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 def get_db_connection():
-    if not DATABASE_URL:
-        raise ValueError("DATABASE_URL is not set in environment variables")
-
-    # Ensure the URL is in the correct format for psycopg2
-    if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = dpg-cv5bp5q3esus73aridg0-a.oregon-postgres.render.com.replace("postgres://", "postgresql://", 1)
-
-    result = urlparse(dpg-cv5bp5q3esus73aridg0-a.oregon-postgres.render.com)
-    
+    result = urlparse(DATABASE_URL)
     conn = psycopg2.connect(
-        dbname=result.path[1:],  # Skip the leading "/"
+        dbname=result.path[1:],  # Skip the leading '/'
         user=result.username,
         password=result.password,
         host=result.hostname,
@@ -31,7 +29,7 @@ def get_db_connection():
     )
     return conn
 
-# Create tables if they don't exist
+# Initialize database tables
 def init_db():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -52,14 +50,12 @@ def init_db():
             ''')
             conn.commit()
 
-# Initialize the database
 init_db()
 
 # Ensure QR code folder exists
 QR_FOLDER = "static/qr_codes"
 os.makedirs(QR_FOLDER, exist_ok=True)
 
-# Home route
 @app.route('/')
 def home():
     if 'username' in session:
@@ -67,7 +63,6 @@ def home():
     flash("Please log in first!", "warning")
     return redirect(url_for('login'))
 
-# User Registration
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -93,7 +88,6 @@ def register():
 
     return render_template('register.html')
 
-# User Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -119,14 +113,12 @@ def login():
 
     return render_template('login.html')
 
-# User Logout
 @app.route('/logout')
 def logout():
     session.pop('username', None)
     flash("You have been logged out.", "info")
     return redirect(url_for('login'))
 
-# Generate QR Code and Store Data
 @app.route('/generate_qr', methods=['POST'])
 def generate_qr():
     full_name = request.form.get('full_name').strip()
@@ -145,18 +137,15 @@ def generate_qr():
     except psycopg2.IntegrityError:
         return jsonify({"error": "Mobile number or Vehicle number already exists!"}), 400
 
-    # Generate a URL containing user details
     details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
 
-    # Generate QR code with embedded data
     qr_img = qrcode.make(details_url)
-    qr_filename = f"{mobile}.png"  # Ensure uniqueness using mobile number
+    qr_filename = f"{mobile}.png"
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
     return jsonify({"qr_url": url_for('static', filename=f'qr_codes/{qr_filename}', _external=True)})
 
-# Display Emergency Details When QR is Scanned
 @app.route('/emergency-info')
 def emergency_info():
     name = request.args.get('name', 'Unknown')
@@ -165,6 +154,5 @@ def emergency_info():
 
     return render_template('emergency_info.html', name=name, mobile=mobile, vehicle=vehicle)
 
-# Run the Flask app
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
