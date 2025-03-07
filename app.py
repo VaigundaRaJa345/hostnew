@@ -56,6 +56,7 @@ os.makedirs(QR_FOLDER, exist_ok=True)
 def home():
     if 'username' in session:
         return render_template('home.html', username=session['username'])
+    flash("Please log in first!", "warning")
     return redirect(url_for('login'))
 
 # User Registration
@@ -66,7 +67,7 @@ def register():
         password = request.form.get('password')
 
         if not username or not password:
-            flash("Username and password are required!", "error")
+            flash("Username and password are required!", "danger")
             return redirect(url_for('register'))
 
         hashed_password = generate_password_hash(password)
@@ -79,7 +80,7 @@ def register():
             flash("Registration successful! Please log in.", "success")
             return redirect(url_for('login'))
         except psycopg2.IntegrityError:
-            flash("Username already exists!", "error")
+            flash("Username already exists!", "danger")
             return redirect(url_for('register'))
 
     return render_template('register.html')
@@ -92,7 +93,7 @@ def login():
         password = request.form.get('password')
 
         if not username or not password:
-            flash("Username and password are required!", "error")
+            flash("Username and password are required!", "danger")
             return redirect(url_for('login'))
 
         with get_db_connection() as conn:
@@ -105,7 +106,7 @@ def login():
             flash("Login successful!", "success")
             return redirect(url_for('home'))
         else:
-            flash("Invalid username or password!", "error")
+            flash("Invalid username or password!", "danger")
             return redirect(url_for('login'))
 
     return render_template('login.html')
@@ -114,7 +115,7 @@ def login():
 @app.route('/logout')
 def logout():
     session.pop('username', None)
-    flash("You have been logged out.", "success")
+    flash("You have been logged out.", "info")
     return redirect(url_for('login'))
 
 # Generate QR Code and Store Data
@@ -125,7 +126,7 @@ def generate_qr():
     vehicle = request.form.get('vehicle')
 
     if not full_name or not mobile or not vehicle:
-        flash("All fields are required!", "error")
+        flash("All fields are required!", "danger")
         return redirect(url_for('home'))
 
     try:
@@ -135,7 +136,7 @@ def generate_qr():
                             (full_name, mobile, vehicle))
                 conn.commit()
     except psycopg2.IntegrityError:
-        flash("Mobile number or Vehicle number already exists!", "error")
+        flash("Mobile number or Vehicle number already exists!", "danger")
         return redirect(url_for('home'))
 
     # Generate a URL containing user details
@@ -148,6 +149,7 @@ def generate_qr():
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
+    flash("QR Code generated successfully!", "success")
     return render_template("home.html", qr_image=qr_filename, qr_url=details_url)
 
 # Display Emergency Details When QR is Scanned
