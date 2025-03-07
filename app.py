@@ -1,7 +1,7 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2  # PostgreSQL
-import os
 import qrcode
 from urllib.parse import urlparse
 
@@ -10,7 +10,6 @@ app.secret_key = os.getenv("SECRET_KEY", "your_secret_key")
 
 # Get the database URL from environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
-
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL is not set in environment variables")
 
@@ -20,14 +19,13 @@ if DATABASE_URL.startswith("postgres://"):
 
 def get_db_connection():
     result = urlparse(DATABASE_URL)
-    conn = psycopg2.connect(
-        dbname=result.path[1:],  # Skip the leading '/'
+    return psycopg2.connect(
+        dbname=result.path[1:],  
         user=result.username,
         password=result.password,
         host=result.hostname,
         port=result.port
     )
-    return conn
 
 # Initialize database tables
 def init_db():
@@ -100,7 +98,7 @@ def login():
 
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('SELECT * FROM users WHERE username = %s', (username,))
+                cur.execute('SELECT id, username, password FROM users WHERE username = %s', (username,))
                 user = cur.fetchone()
 
         if user and check_password_hash(user[2], password):
@@ -131,28 +129,33 @@ def generate_qr():
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
-                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s)',
+                cur.execute('INSERT INTO emergency_contacts (name, mobile, vehicle) VALUES (%s, %s, %s) RETURNING id',
                             (full_name, mobile, vehicle))
+                contact_id = cur.fetchone()[0]
                 conn.commit()
     except psycopg2.IntegrityError:
         return jsonify({"error": "Mobile number or Vehicle number already exists!"}), 400
 
-    details_url = url_for('emergency_info', name=full_name, mobile=mobile, vehicle=vehicle, _external=True)
+    details_url = url_for('emergency_info', contact_id=contact_id, _external=True)
 
     qr_img = qrcode.make(details_url)
-    qr_filename = f"{mobile}.png"
+    qr_filename = f"{contact_id}.png"
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
     return jsonify({"qr_url": url_for('static', filename=f'qr_codes/{qr_filename}', _external=True)})
 
-@app.route('/emergency-info')
-def emergency_info():
-    name = request.args.get('name', 'Unknown')
-    mobile = request.args.get('mobile', 'Not provided')
-    vehicle = request.args.get('vehicle', 'Not provided')
+@app.route('/emergency-info/<int:contact_id>')
+def emergency_info(contact_id):
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute('SELECT name, mobile, vehicle FROM emergency_contacts WHERE id = %s', (contact_id,))
+            contact = cur.fetchone()
 
-    return render_template('emergency_info.html', name=name, mobile=mobile, vehicle=vehicle)
+    if contact:
+        return render_template('emergency_info.html', name=contact[0], mobile=contact[1], vehicle=contact[2])
+    else:
+        return "Contact not found", 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
