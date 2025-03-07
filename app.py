@@ -2,8 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
-import qrcode  # Import QR code library
-import uuid  # For generating unique IDs
+import qrcode  # QR code library
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Required for session management
@@ -37,18 +36,18 @@ def init_db():
 # Initialize the database
 init_db()
 
-# Ensure the QR code folder exists
+# Ensure QR code folder exists
 QR_FOLDER = "static/qr_codes"
 os.makedirs(QR_FOLDER, exist_ok=True)
 
-# Route to serve the home page
+# Home route
 @app.route('/')
 def home():
     if 'username' in session:
         return render_template('home.html', username=session['username'])
     return redirect(url_for('login'))
 
-# Route to handle user registration
+# User Registration
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -73,7 +72,7 @@ def register():
 
     return render_template('register.html')
 
-# Route to handle user login
+# User Login
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -97,14 +96,14 @@ def login():
 
     return render_template('login.html')
 
-# Route to handle user logout
+# User Logout
 @app.route('/logout')
 def logout():
     session.pop('username', None)
     flash("You have been logged out.", "success")
     return redirect(url_for('login'))
 
-# Route to generate QR Code and store data
+# Generate QR Code and Store Data
 @app.route('/generate_qr', methods=['POST'])
 def generate_qr():
     full_name = request.form.get('full_name')
@@ -125,17 +124,16 @@ def generate_qr():
         return redirect(url_for('home'))
 
     # Generate a QR code with the database ID
-    qr_id = mobile  # Using mobile number as the unique identifier
-    details_url = url_for('emergency_info', mobile=qr_id, _external=True)
+    details_url = url_for('emergency_info', mobile=mobile, _external=True)
     qr_img = qrcode.make(details_url)
 
-    qr_filename = f"{full_name.replace(' ', '_')}_{qr_id}.png"
+    qr_filename = f"{full_name.replace(' ', '_')}_{mobile}.png"
     qr_path = os.path.join(QR_FOLDER, qr_filename)
     qr_img.save(qr_path)
 
-    return render_template("home.html", qr_image=qr_filename)
+    return render_template("home.html", qr_image=qr_filename, qr_url=details_url)
 
-# Route to display emergency details when QR code is scanned
+# Display Emergency Details When QR is Scanned
 @app.route('/emergency-info')
 def emergency_info():
     mobile = request.args.get('mobile')
