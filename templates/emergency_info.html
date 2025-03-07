@@ -5,14 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emergency Info</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #0a0f1e; /* Dark navy blue */
+            color: #ffffff; /* White text */
+        }
+        .card {
+            background: linear-gradient(135deg, #001f3f, #003366); /* Gradient blue */
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            margin: auto;
+        }
+        .btn-call {
+            background-color: #007bff; /* Blue */
+            border: none;
+            font-size: 18px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: 0.3s;
+        }
+        .btn-call:hover {
+            background-color: #0056b3; /* Darker blue */
+        }
+    </style>
 </head>
-<body class="bg-dark text-white text-center">
-    <div class="container mt-5">
-        <h2>Emergency Contact Information</h2>
+<body class="d-flex align-items-center justify-content-center vh-100">
+    <div class="card text-center">
+        <h2 class="mb-3">Emergency Contact</h2>
+        <hr class="border-light">
         <p><strong>Name:</strong> {{ name }}</p>
         <p><strong>Mobile:</strong> {{ mobile }}</p>
         <p><strong>Vehicle Number:</strong> {{ vehicle }}</p>
-        <a href="tel:{{ mobile }}" class="btn btn-success">Call Emergency Contact</a>
+        <a href="tel:{{ mobile }}" class="btn btn-call w-100">📞 Call Emergency Contact</a>
     </div>
 </body>
 </html>
