@@ -108,6 +108,14 @@ def generate_qr():
     mobile = request.form.get('mobile')
     vehicle = request.form.get('vehicle')
 
+@app.route('/emergency-info')
+def emergency_info():
+    name = request.args.get('name', 'Unknown')
+    mobile = request.args.get('mobile', 'Not provided')
+    vehicle = request.args.get('vehicle', 'Not provided')
+    
+    return render_template('emergency_info.html', name=name, mobile=mobile, vehicle=vehicle)    
+
     if not full_name or not mobile or not vehicle:
         flash("All fields are required!", "error")
         return redirect(url_for('home'))
@@ -151,4 +159,4 @@ def show_details(qr_id):
 
 # Run the Flask app
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0', port=5000 , debug=True)
