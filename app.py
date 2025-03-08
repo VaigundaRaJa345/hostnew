@@ -67,12 +67,29 @@ class RegistrationForm(FlaskForm):
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Register')
 
-@app.route('/')
+@app.route("/")
 def home():
-    if 'username' in session:
-        return render_template('home.html', username=session['username'])
-    flash("Please log in first!", "warning")
-    return redirect(url_for('login'))
+    return render_template("home.html")  # Your form page
+
+@app.route("/generate_qr", methods=["POST"])
+def generate_qr():
+    full_name = request.form.get("full_name")
+    mobile = request.form.get("mobile")
+    vehicle = request.form.get("vehicle")
+
+    if not full_name or not mobile or not vehicle:
+        return "Missing data", 400
+
+    # Create QR data
+    qr_data = f"Name: {full_name}\nMobile: {mobile}\nVehicle: {vehicle}"
+
+    # Generate QR code
+    qr = qrcode.make(qr_data)
+    buffer = io.BytesIO()
+    qr.save(buffer, format="PNG")
+    qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+    return render_template("qr_display.html", qr_code=qr_base64)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

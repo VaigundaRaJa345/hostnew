@@ -115,39 +115,21 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        function generateQR() {
-            let fullName = document.getElementById("qr-name").value.trim();
-            let mobile = document.getElementById("qr-mob").value.trim();
-            let vehicle = document.getElementById("qr-vech").value.trim();
+        function generateQR(event) {
+    event.preventDefault();  // Prevents default only if validation fails
 
-            if (!fullName || !mobile || !vehicle) {
-                alert("All fields are required!");
-                return;
-            }
+    let form = document.getElementById("qrForm");
+    let fullName = document.getElementById("qr-name").value;
+    let mobile = document.getElementById("qr-mob").value;
+    let vehicle = document.getElementById("qr-vech").value;
 
-            fetch("/generate_qr", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                body: new URLSearchParams({
-                    full_name: fullName,
-                    mobile: mobile,
-                    vehicle: vehicle,
-                }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    document.getElementById("qrImage").src = data.qr_url;
-                    document.getElementById("downloadQR").href = data.qr_url;
-                    document.getElementById("qrResult").classList.remove("hidden");
-                }
-            })
-            .catch(error => console.error("Error:", error));
-        }
+    if (!fullName || !mobile || !vehicle) {
+        alert("Please fill all fields!");
+        return;
+    }
+
+    form.submit();  // This sends the data to Flask
+}
     </script>
 
 </body>
