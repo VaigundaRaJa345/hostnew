@@ -76,7 +76,7 @@
         <hr>
 
         <!-- QR Generation Form -->
-        <form id="qrForm" onsubmit="event.preventDefault(); generateQR();">
+        <form id="qrForm" action="/generate_qr" method="post">
             <div class="mb-3">
                 <label class="form-label">Full Name</label>
                 <input type="text" id="qr-name" name="full_name" class="form-control" required>
