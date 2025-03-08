@@ -56,11 +56,13 @@
             color: red;
             font-size: 14px;
         }
-        footer {
+        #qrResult {
             text-align: center;
             margin-top: 20px;
-            padding: 10px;
-            color: #777;
+        }
+        #qrImage {
+            max-width: 100%;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -76,29 +78,26 @@
         <hr>
 
         <!-- QR Generation Form -->
-        <form id="qrForm" action="/generate_qr" method="post">
+        <form id="qrForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
+
             <div class="mb-3">
                 <label class="form-label">Full Name</label>
                 <input type="text" id="qr-name" name="full_name" class="form-control" required>
-                <span id="error-name" class="error hidden">Name is required.</span>
             </div>
             <div class="mb-3">
                 <label class="form-label">Emergency Mobile Number</label>
                 <input type="tel" id="qr-mob" name="mobile" class="form-control" required pattern="[0-9]{10}">
-                <span id="error-mob" class="error hidden">Enter a valid 10-digit mobile number.</span>
             </div>
             <div class="mb-3">
                 <label class="form-label">Vehicle Number</label>
                 <input type="text" id="qr-vech" name="vehicle" class="form-control" required>
-                <span id="error-vech" class="error hidden">Vehicle number is required.</span>
             </div>
             <button type="submit" class="btn btn-success">Generate QR</button>
         </form>
 
-        <!-- QR Code Display -->
-        <div id="qrResult" class="mt-3 hidden">
+        <!-- QR Code Display (Hidden Initially) -->
+        <div id="qrResult" class="hidden">
             <h5>Your QR Code:</h5>
             <img id="qrImage" src="" alt="QR Code">
             <a id="downloadQR" class="btn btn-info mt-2" download="QR_Code.png">Save QR</a>
@@ -116,22 +115,32 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- jQuery for AJAX -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script>
-        function generateQR(event) {
-            event.preventDefault();  // Prevents default only if validation fails
+        $(document).ready(function() {
+            $("#qrForm").submit(function(event) {
+                event.preventDefault();  // Prevent page reload
 
-            let form = document.getElementById("qrForm");
-            let fullName = document.getElementById("qr-name").value;
-            let mobile = document.getElementById("qr-mob").value;
-            let vehicle = document.getElementById("qr-vech").value;
+                let formData = {
+                    full_name: $("#qr-name").val(),
+                    mobile: $("#qr-mob").val(),
+                    vehicle: $("#qr-vech").val(),
+                    csrf_token: $("input[name='csrf_token']").val()
+                };
 
-            if (!fullName || !mobile || !vehicle) {
-                alert("Please fill all fields!");
-                return;
-            }
-
-            form.submit();  // This sends the data to Flask
-        }
+                $.post("/generate_qr", formData, function(response) {
+                    if (response.qr_image) {
+                        $("#qrImage").attr("src", response.qr_image);
+                        $("#downloadQR").attr("href", response.qr_image);
+                        $("#qrResult").removeClass("hidden");
+                    } else {
+                        alert("QR generation failed!");
+                    }
+                });
+            });
+        });
     </script>
 
 </body>
