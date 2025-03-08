@@ -77,20 +77,8 @@
 
         <!-- QR Generation Form -->
         <form id="qrForm" action="/generate_qr" method="post">
-
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    
-    <label>Full Name</label>
-    <input type="text" name="full_name" required>
-
-    <label>Emergency Mobile Number</label>
-    <input type="tel" name="mobile" required>
-
-    <label>Vehicle Number</label>
-    <input type="text" name="vehicle" required>
-
-    <button type="submit">Generate QR</button>
-    
+            
             <div class="mb-3">
                 <label class="form-label">Full Name</label>
                 <input type="text" id="qr-name" name="full_name" class="form-control" required>
@@ -130,20 +118,20 @@
 
     <script>
         function generateQR(event) {
-    event.preventDefault();  // Prevents default only if validation fails
+            event.preventDefault();  // Prevents default only if validation fails
 
-    let form = document.getElementById("qrForm");
-    let fullName = document.getElementById("qr-name").value;
-    let mobile = document.getElementById("qr-mob").value;
-    let vehicle = document.getElementById("qr-vech").value;
+            let form = document.getElementById("qrForm");
+            let fullName = document.getElementById("qr-name").value;
+            let mobile = document.getElementById("qr-mob").value;
+            let vehicle = document.getElementById("qr-vech").value;
 
-    if (!fullName || !mobile || !vehicle) {
-        alert("Please fill all fields!");
-        return;
-    }
+            if (!fullName || !mobile || !vehicle) {
+                alert("Please fill all fields!");
+                return;
+            }
 
-    form.submit();  // This sends the data to Flask
-}
+            form.submit();  // This sends the data to Flask
+        }
     </script>
 
 </body>
